@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
 import 'admin_dashboard.dart';
 
 class AdminLoginScreen extends StatefulWidget {
@@ -9,33 +10,76 @@ class AdminLoginScreen extends StatefulWidget {
 }
 
 class _AdminLoginScreenState extends State<AdminLoginScreen> {
-  final TextEditingController adminIdController =
+  final TextEditingController emailController =
       TextEditingController();
 
   final TextEditingController passwordController =
       TextEditingController();
 
   bool isPasswordVisible = false;
+  bool isLoading = false;
 
-  void loginAsAdmin() {
-    final adminId = adminIdController.text.trim();
-    final password = passwordController.text.trim();
+  Future<void> loginAsAdmin() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
 
-    if (adminId.isEmpty || password.isEmpty) {
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter Admin ID and Password'),
+          content: Text('Please enter Email and Password'),
         ),
       );
       return;
     }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const AdminDashboard(),
-      ),
-    );
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final result = await ApiService.login(
+        email: email,
+        password: password,
+      );
+
+      final role =
+          result['role']?.toString().toLowerCase();
+
+      if (role != 'admin') {
+        throw Exception(
+          'This account does not have Admin access.',
+        );
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const AdminDashboard(),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
+      final message = e
+          .toString()
+          .replaceFirst('Exception: ', '');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
+    }
   }
 
   void forgotPassword() {
@@ -45,7 +89,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         return AlertDialog(
           title: const Text('Forgot Password'),
           content: const Text(
-            'Password reset will be connected with the backend later.',
+            'Please contact the system administrator to reset your password.',
           ),
           actions: [
             TextButton(
@@ -62,14 +106,15 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
 
   @override
   void dispose() {
-    adminIdController.dispose();
+    emailController.dispose();
     passwordController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
+    final primaryColor =
+        Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       appBar: AppBar(
@@ -79,7 +124,8 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment:
+                CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20),
 
@@ -87,7 +133,9 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                 width: 92,
                 height: 92,
                 decoration: BoxDecoration(
-                  color: primaryColor.withValues(alpha: 0.10),
+                  color: primaryColor.withValues(
+                    alpha: 0.10,
+                  ),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -122,12 +170,17 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
               const SizedBox(height: 32),
 
               TextField(
-                controller: adminIdController,
-                textInputAction: TextInputAction.next,
+                controller: emailController,
+                keyboardType:
+                    TextInputType.emailAddress,
+                textInputAction:
+                    TextInputAction.next,
                 decoration: const InputDecoration(
-                  labelText: 'Admin ID',
-                  hintText: 'Enter Admin ID',
-                  prefixIcon: Icon(Icons.badge_outlined),
+                  labelText: 'Email',
+                  hintText: 'Enter admin email',
+                  prefixIcon:
+                      Icon(Icons.email_outlined),
+                  border: OutlineInputBorder(),
                 ),
               ),
 
@@ -136,11 +189,18 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
               TextField(
                 controller: passwordController,
                 obscureText: !isPasswordVisible,
-                onSubmitted: (_) => loginAsAdmin(),
+                onSubmitted: (_) {
+                  if (!isLoading) {
+                    loginAsAdmin();
+                  }
+                },
                 decoration: InputDecoration(
                   labelText: 'Password',
-                  hintText: 'Enter Password',
-                  prefixIcon: const Icon(Icons.lock_outline),
+                  hintText: 'Enter password',
+                  prefixIcon:
+                      const Icon(Icons.lock_outline),
+                  border:
+                      const OutlineInputBorder(),
                   suffixIcon: IconButton(
                     tooltip: isPasswordVisible
                         ? 'Hide password'
@@ -152,7 +212,8 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                     ),
                     onPressed: () {
                       setState(() {
-                        isPasswordVisible = !isPasswordVisible;
+                        isPasswordVisible =
+                            !isPasswordVisible;
                       });
                     },
                   ),
@@ -164,40 +225,39 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: forgotPassword,
-                  child: const Text('Forgot Password?'),
+                  onPressed:
+                      isLoading ? null : forgotPassword,
+                  child:
+                      const Text('Forgot Password?'),
                 ),
               ),
 
               const SizedBox(height: 12),
 
               ElevatedButton.icon(
-                onPressed: loginAsAdmin,
-                icon: const Icon(Icons.login),
-                label: const Text('Login'),
-              ),
-
-              const SizedBox(height: 22),
-
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: primaryColor.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Text(
-                  'Demo Mode: Any non-empty Admin ID and Password will work.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                  ),
+                onPressed:
+                    isLoading ? null : loginAsAdmin,
+                icon: isLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child:
+                            CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.login),
+                label: Text(
+                  isLoading
+                      ? 'Logging in...'
+                      : 'Login',
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               Text(
-                'Secure authentication will be connected with the backend later.',
+                'Use your registered Admin account credentials.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,

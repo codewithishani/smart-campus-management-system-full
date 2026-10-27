@@ -30,15 +30,14 @@ class LogoutButton extends StatelessWidget {
 
                 if (onLogout != null) {
                   onLogout!();
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Logout is currently in demo mode.',
-                      ),
-                    ),
-                  );
+                  return;
                 }
+
+                // End the current dashboard session and
+                // return to the first application screen.
+                Navigator.of(context).popUntil(
+                  (route) => route.isFirst,
+                );
               },
               child: const Text('Logout'),
             ),

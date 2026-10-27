@@ -1,41 +1,118 @@
 import 'package:flutter/material.dart';
+
+import '../../services/api_service.dart';
 import 'student_dashboard.dart';
 
 class StudentLoginScreen extends StatefulWidget {
   const StudentLoginScreen({super.key});
 
   @override
-  State<StudentLoginScreen> createState() => _StudentLoginScreenState();
+  State<StudentLoginScreen> createState() =>
+      _StudentLoginScreenState();
 }
 
 class _StudentLoginScreenState extends State<StudentLoginScreen> {
-  final TextEditingController studentIdController =
+  final TextEditingController emailController =
       TextEditingController();
 
   final TextEditingController passwordController =
       TextEditingController();
 
   bool isPasswordVisible = false;
+  bool isLoading = false;
 
-  void loginAsStudent() {
-    final studentId = studentIdController.text.trim();
-    final password = passwordController.text.trim();
+  Future<void> loginAsStudent() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
 
-    if (studentId.isEmpty || password.isEmpty) {
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter Student ID and Password'),
+          content: Text('Please enter Email and Password'),
         ),
       );
       return;
     }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const StudentDashboard(),
-      ),
-    );
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final result = await ApiService.login(
+        email: email,
+        password: password,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final role = result['role']?.toString().toLowerCase();
+
+      if (role != 'student') {
+        setState(() {
+          isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'This account is not registered as a Student account.',
+            ),
+          ),
+        );
+
+        return;
+      }
+
+      final studentIdValue = result['student_id'];
+
+      if (studentIdValue == null) {
+        setState(() {
+          isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Student ID was not returned by the server.',
+            ),
+          ),
+        );
+
+        return;
+      }
+
+      final int studentId = studentIdValue is int
+          ? studentIdValue
+          : int.parse(studentIdValue.toString());
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => StudentDashboard(
+            studentId: studentId,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().replaceFirst('Exception: ', ''),
+          ),
+        ),
+      );
+    }
   }
 
   void forgotPassword() {
@@ -45,7 +122,7 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
         return AlertDialog(
           title: const Text('Forgot Password'),
           content: const Text(
-            'Password reset will be connected with the backend later.',
+            'Please contact the administrator to reset your password.',
           ),
           actions: [
             TextButton(
@@ -62,14 +139,15 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
 
   @override
   void dispose() {
-    studentIdController.dispose();
+    emailController.dispose();
     passwordController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
+    final primaryColor =
+        Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       appBar: AppBar(
@@ -79,16 +157,17 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment:
+                CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20),
 
-              // Icon
               Container(
                 width: 92,
                 height: 92,
                 decoration: BoxDecoration(
-                  color: primaryColor.withValues(alpha: 0.10),
+                  color:
+                      primaryColor.withValues(alpha: 0.10),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -123,12 +202,17 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
               const SizedBox(height: 32),
 
               TextField(
-                controller: studentIdController,
-                textInputAction: TextInputAction.next,
+                controller: emailController,
+                keyboardType:
+                    TextInputType.emailAddress,
+                textInputAction:
+                    TextInputAction.next,
                 decoration: const InputDecoration(
-                  labelText: 'Student ID',
-                  hintText: 'Enter Student ID',
-                  prefixIcon: Icon(Icons.badge_outlined),
+                  labelText: 'Email',
+                  hintText:
+                      'Enter your student email',
+                  prefixIcon:
+                      Icon(Icons.email_outlined),
                 ),
               ),
 
@@ -137,23 +221,28 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
               TextField(
                 controller: passwordController,
                 obscureText: !isPasswordVisible,
-                onSubmitted: (_) => loginAsStudent(),
+                onSubmitted: (_) =>
+                    loginAsStudent(),
                 decoration: InputDecoration(
                   labelText: 'Password',
                   hintText: 'Enter Password',
-                  prefixIcon: const Icon(Icons.lock_outline),
+                  prefixIcon:
+                      const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     tooltip: isPasswordVisible
                         ? 'Hide password'
                         : 'Show password',
                     icon: Icon(
                       isPasswordVisible
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
+                          ? Icons
+                              .visibility_off_outlined
+                          : Icons
+                              .visibility_outlined,
                     ),
                     onPressed: () {
                       setState(() {
-                        isPasswordVisible = !isPasswordVisible;
+                        isPasswordVisible =
+                            !isPasswordVisible;
                       });
                     },
                   ),
@@ -163,46 +252,55 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
               const SizedBox(height: 8),
 
               Align(
-                alignment: Alignment.centerRight,
+                alignment:
+                    Alignment.centerRight,
                 child: TextButton(
                   onPressed: forgotPassword,
-                  child: const Text('Forgot Password?'),
+                  child:
+                      const Text('Forgot Password?'),
                 ),
               ),
 
               const SizedBox(height: 12),
 
               ElevatedButton.icon(
-                onPressed: loginAsStudent,
-                icon: const Icon(Icons.login),
-                label: const Text('Login'),
+                onPressed:
+                    isLoading ? null : loginAsStudent,
+                icon: isLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child:
+                            CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.login),
+                label: Text(
+                  isLoading
+                      ? 'Logging in...'
+                      : 'Login',
+                ),
               ),
 
               const SizedBox(height: 22),
 
               Container(
-                padding: const EdgeInsets.all(14),
+                padding:
+                    const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: primaryColor.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(14),
+                  color: primaryColor.withValues(
+                    alpha: 0.06,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(14),
                 ),
                 child: const Text(
-                  'Demo Mode: Any non-empty Student ID and Password will work.',
+                  'Use your registered student email and password.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12,
                   ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              Text(
-                'Secure authentication will be connected with the backend later.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
                 ),
               ),
             ],

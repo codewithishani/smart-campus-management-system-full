@@ -1,4 +1,6 @@
+
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
 import '../../widgets/logout_button.dart';
 
 import 'parent_profile_screen.dart';
@@ -14,51 +16,321 @@ import 'parent_leave_information_screen.dart';
 import 'parent_notifications_screen.dart';
 import 'parent_faculty_contact_screen.dart';
 
-class ParentDashboard extends StatelessWidget {
-  const ParentDashboard({super.key});
+class ParentDashboard extends StatefulWidget {
+  final int parentId;
+
+  const ParentDashboard({
+    super.key,
+    required this.parentId,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    final modules = [
+  State<ParentDashboard> createState() =>
+      _ParentDashboardState();
+}
+
+class _ParentDashboardState
+    extends State<ParentDashboard> {
+  Map<String, dynamic>? parent;
+  List<Map<String, dynamic>> linkedStudents = [];
+  Map<String, dynamic>? latestNotice;
+
+  bool isLoading = true;
+  String? errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    loadDashboard();
+  }
+
+  Future<void> loadDashboard() async {
+    try {
+      final results = await Future.wait([
+        ApiService.getParents(),
+        ApiService.getParentStudentLinks(),
+        ApiService.getStudents(),
+        ApiService.getNotices(),
+      ]);
+
+      final parents = results[0];
+      final links = results[1];
+      final students = results[2];
+      final notices = results[3];
+
+      Map<String, dynamic>? foundParent;
+
+      for (final item in parents) {
+        if (item is! Map) continue;
+
+        final data = Map<String, dynamic>.from(item);
+
+        final parentId = getIntValue(
+          data,
+          ['parent_id', 'id'],
+        );
+
+        if (parentId == widget.parentId) {
+          foundParent = data;
+          break;
+        }
+      }
+
+      if (foundParent == null) {
+        throw Exception('Parent not found');
+      }
+
+      final studentIds = <int>[];
+
+      for (final item in links) {
+        if (item is! Map) continue;
+
+        final link = Map<String, dynamic>.from(item);
+
+        final parentId = getIntValue(
+          link,
+          ['parent_id'],
+        );
+
+        if (parentId != widget.parentId) {
+          continue;
+        }
+
+        final studentId = getIntValue(
+          link,
+          ['student_id'],
+        );
+
+        if (studentId != 0 &&
+            !studentIds.contains(studentId)) {
+          studentIds.add(studentId);
+        }
+      }
+
+      final resolvedStudents =
+          <Map<String, dynamic>>[];
+
+      for (final item in students) {
+        if (item is! Map) continue;
+
+        final student =
+            Map<String, dynamic>.from(item);
+
+        final studentId = getIntValue(
+          student,
+          ['student_id', 'id'],
+        );
+
+        if (studentIds.contains(studentId)) {
+          resolvedStudents.add(student);
+        }
+      }
+
+      Map<String, dynamic>? resolvedLatestNotice;
+
+      final noticeList = <Map<String, dynamic>>[];
+
+      for (final item in notices) {
+        if (item is! Map) continue;
+
+        final notice =
+            Map<String, dynamic>.from(item);
+
+        noticeList.add(notice);
+      }
+
+      noticeList.sort((a, b) {
+        final aDate = DateTime.tryParse(
+              getStringValue(
+                a,
+                ['publish_date', 'created_at'],
+                defaultValue: '',
+              ),
+            ) ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+
+        final bDate = DateTime.tryParse(
+              getStringValue(
+                b,
+                ['publish_date', 'created_at'],
+                defaultValue: '',
+              ),
+            ) ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+
+        return bDate.compareTo(aDate);
+      });
+
+      if (noticeList.isNotEmpty) {
+        resolvedLatestNotice = noticeList.first;
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        parent = foundParent;
+        linkedStudents = resolvedStudents;
+        latestNotice = resolvedLatestNotice;
+        isLoading = false;
+        errorMessage = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+        errorMessage =
+            'Unable to load parent dashboard.';
+      });
+    }
+  }
+
+  int getIntValue(
+    Map<String, dynamic> data,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = data[key];
+
+      if (value is int) {
+        return value;
+      }
+
+      final parsed = int.tryParse(
+        value?.toString() ?? '',
+      );
+
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+
+    return 0;
+  }
+
+  String getStringValue(
+    Map<String, dynamic> data,
+    List<String> keys, {
+    String defaultValue = 'Not available',
+  }) {
+    for (final key in keys) {
+      final value = data[key];
+
+      if (value != null &&
+          value.toString().trim().isNotEmpty) {
+        return value.toString();
+      }
+    }
+
+    return defaultValue;
+  }
+
+  String getParentName() {
+    if (parent == null) {
+      return 'Parent';
+    }
+
+    return getStringValue(
+      parent!,
+      ['name'],
+      defaultValue: 'Parent',
+    );
+  }
+
+  String getStudentSummary() {
+    if (linkedStudents.isEmpty) {
+      return 'No linked students found';
+    }
+
+    if (linkedStudents.length == 1) {
+      return '1 registered student';
+    }
+
+    return '${linkedStudents.length} registered students';
+  }
+
+  String getLatestNoticeTitle() {
+    if (latestNotice == null) {
+      return 'No notices available';
+    }
+
+    return getStringValue(
+      latestNotice!,
+      ['title'],
+      defaultValue: 'Campus Notice',
+    );
+  }
+
+  String getLatestNoticeDescription() {
+    if (latestNotice == null) {
+      return 'No recent college announcements are available.';
+    }
+
+    return getStringValue(
+      latestNotice!,
+      ['description'],
+      defaultValue:
+          'Open Notices to view college announcements.',
+    );
+  }
+
+  List<Map<String, dynamic>> buildModules() {
+    return [
       {
         'title': 'Parent Profile',
         'icon': Icons.person_outline,
-        'screen': const ParentProfileScreen(),
+        'screen': ParentProfileScreen(
+          parentId: widget.parentId,
+        ),
       },
       {
         'title': 'Linked Student Profile',
         'icon': Icons.school_outlined,
-        'screen': const LinkedStudentProfileScreen(),
+        'screen': LinkedStudentProfileScreen(
+          parentId: widget.parentId,
+        ),
       },
       {
         'title': 'Attendance Monitoring',
         'icon': Icons.calendar_month_outlined,
-        'screen': const ParentAttendanceScreen(),
+        'screen': ParentAttendanceScreen(
+          parentId: widget.parentId,
+        ),
       },
       {
         'title': 'Timetable',
         'icon': Icons.schedule_outlined,
-        'screen': const ParentTimetableScreen(),
+        'screen': ParentTimetableScreen(
+          parentId: widget.parentId,
+        ),
       },
       {
         'title': 'Assignment Status',
         'icon': Icons.assignment_turned_in_outlined,
-        'screen': const ParentAssignmentStatusScreen(),
+        'screen': ParentAssignmentStatusScreen(
+          widget.parentId,
+        ),
       },
       {
         'title': 'Results & Marks',
         'icon': Icons.grade_outlined,
-        'screen': const ParentResultsScreen(),
+        'screen': ParentResultsScreen(
+          parentId: widget.parentId,
+        ),
       },
       {
         'title': 'Academic Performance',
         'icon': Icons.insights_outlined,
-        'screen': const ParentAcademicPerformanceScreen(),
+        'screen': ParentAcademicPerformanceScreen(
+          widget.parentId,
+        ),
       },
       {
         'title': 'Examination Schedule',
         'icon': Icons.event_note_outlined,
-        'screen': const ParentExamScheduleScreen(),
+        'screen': ParentExamScheduleScreen(
+          parentId: widget.parentId,
+        ),
       },
       {
         'title': 'Notices',
@@ -68,71 +340,125 @@ class ParentDashboard extends StatelessWidget {
       {
         'title': 'Leave Information',
         'icon': Icons.event_available_outlined,
-        'screen': const ParentLeaveInformationScreen(),
+        'screen': ParentLeaveInformationScreen(
+          widget.parentId,
+        ),
       },
       {
         'title': 'Notifications',
         'icon': Icons.notifications_outlined,
-        'screen': const ParentNotificationsScreen(),
+        'screen': ParentNotificationsScreen(
+          parentId: widget.parentId,
+        ),
       },
       {
         'title': 'Faculty Contact',
         'icon': Icons.contact_phone_outlined,
-        'screen': const ParentFacultyContactScreen(),
+        'screen': ParentFacultyContactScreen(
+          parentId: widget.parentId,
+        ),
       },
     ];
+  }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Parent Dashboard'),
-        actions: [
-          IconButton(
-            tooltip: 'Notifications',
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ParentNotificationsScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            tooltip: 'Profile',
-            icon: const Icon(Icons.account_circle_outlined),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ParentProfileScreen(),
-                ),
-              );
-            },
-          ),
-           const LogoutButton(),
-        ],
+  void openScreen(Widget screen) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => screen,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+    );
+  }
+
+  Widget buildOverviewCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: Card(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: 16,
+              horizontal: 12,
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 23,
+                  child: Icon(icon),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        value,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget buildDashboard() {
+    final modules = buildModules();
+
+    return RefreshIndicator(
+      onRefresh: loadDashboard,
+      child: SingleChildScrollView(
+        physics:
+            const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          16,
+          18,
+          16,
+          28,
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
             Text(
-              'Hello, Parent 👋',
-              style: Theme.of(context).textTheme.headlineMedium,
+              'Hello, ${getParentName()} 👋',
+              style: Theme.of(context)
+                  .textTheme
+                  .headlineMedium,
             ),
+
             const SizedBox(height: 5),
-            Text(
+
+            const Text(
               'Monitor your child\'s academic progress',
               style: TextStyle(
                 fontSize: 15,
-                color: Colors.grey.shade700,
               ),
             ),
+
             const SizedBox(height: 18),
 
-            // Parent information
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -145,67 +471,34 @@ class ParentDashboard extends StatelessWidget {
                         size: 34,
                       ),
                     ),
+
                     const SizedBox(width: 14),
+
                     Expanded(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            'Mr. Rajesh Patil',
-                            style: TextStyle(
+                            getParentName(),
+                            style: const TextStyle(
                               fontSize: 19,
-                              fontWeight: FontWeight.bold,
+                              fontWeight:
+                                  FontWeight.bold,
                             ),
                           ),
-                          SizedBox(height: 5),
-                          Text('Parent ID: P001'),
-                          SizedBox(height: 2),
-                          Text('Parent of Rahul Patil'),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
 
-            const SizedBox(height: 16),
+                          const SizedBox(height: 5),
 
-            // Linked student
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 28,
-                      child: Icon(
-                        Icons.school_outlined,
-                        size: 30,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
                           Text(
-                            'Linked Student',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            'Parent ID: ${widget.parentId}',
                           ),
-                          SizedBox(height: 4),
+
+                          const SizedBox(height: 2),
+
                           Text(
-                            'Rahul Patil',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            getStudentSummary(),
                           ),
-                          SizedBox(height: 3),
-                          Text('BCA • Semester 5 • Student ID: S001'),
                         ],
                       ),
                     ),
@@ -223,24 +516,37 @@ class ParentDashboard extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
+
             const SizedBox(height: 10),
 
             Row(
               children: [
-                Expanded(
-                  child: _overviewCard(
-                    icon: Icons.calendar_month_outlined,
-                    title: 'Attendance',
-                    value: '85%',
-                  ),
+                buildOverviewCard(
+                  icon: Icons.calendar_month_outlined,
+                  title: 'Attendance',
+                  value: 'View',
+                  onTap: () {
+                    openScreen(
+                      ParentAttendanceScreen(
+                        parentId: widget.parentId,
+                      ),
+                    );
+                  },
                 ),
+
                 const SizedBox(width: 10),
-                Expanded(
-                  child: _overviewCard(
-                    icon: Icons.grade_outlined,
-                    title: 'CGPA',
-                    value: '8.2',
-                  ),
+
+                buildOverviewCard(
+                  icon: Icons.grade_outlined,
+                  title: 'Results',
+                  value: 'View',
+                  onTap: () {
+                    openScreen(
+                      ParentResultsScreen(
+                        parentId: widget.parentId,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -254,11 +560,13 @@ class ParentDashboard extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
+
             const SizedBox(height: 12),
 
             GridView.builder(
               shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
+              physics:
+                  const NeverScrollableScrollPhysics(),
               itemCount: modules.length,
               gridDelegate:
                   const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -272,34 +580,40 @@ class ParentDashboard extends StatelessWidget {
 
                 return Card(
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius:
+                        BorderRadius.circular(16),
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => module['screen'] as Widget,
-                        ),
+                      openScreen(
+                        module['screen'] as Widget,
                       );
                     },
                     child: Padding(
-                      padding: const EdgeInsets.all(12),
+                      padding:
+                          const EdgeInsets.all(12),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment:
+                            MainAxisAlignment.center,
                         children: [
                           CircleAvatar(
                             radius: 27,
                             child: Icon(
-                              module['icon'] as IconData,
+                              module['icon']
+                                  as IconData,
                               size: 28,
                             ),
                           ),
+
                           const SizedBox(height: 10),
+
                           Text(
                             module['title'] as String,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            textAlign:
+                                TextAlign.center,
+                            style:
+                                const TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                              fontWeight:
+                                  FontWeight.w600,
                             ),
                           ),
                         ],
@@ -319,11 +633,13 @@ class ParentDashboard extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
+
             const SizedBox(height: 10),
 
             Card(
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
+                contentPadding:
+                    const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 8,
                 ),
@@ -332,16 +648,20 @@ class ParentDashboard extends StatelessWidget {
                     Icons.notifications_active_outlined,
                   ),
                 ),
-                title: const Text(
-                  'Semester Examination',
-                  style: TextStyle(
+                title: Text(
+                  getLatestNoticeTitle(),
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                subtitle: const Padding(
-                  padding: EdgeInsets.only(top: 5),
+                subtitle: Padding(
+                  padding:
+                      const EdgeInsets.only(top: 5),
                   child: Text(
-                    'Semester examinations will begin from 10 October 2026.',
+                    getLatestNoticeDescription(),
+                    maxLines: 3,
+                    overflow:
+                        TextOverflow.ellipsis,
                   ),
                 ),
                 trailing: const Icon(
@@ -349,11 +669,8 @@ class ParentDashboard extends StatelessWidget {
                   size: 18,
                 ),
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ParentNoticesScreen(),
-                    ),
+                  openScreen(
+                    const ParentNoticesScreen(),
                   );
                 },
               ),
@@ -364,48 +681,86 @@ class ParentDashboard extends StatelessWidget {
     );
   }
 
-  static Widget _overviewCard({
-    required IconData icon,
-    required String title,
-    required String value,
-  }) {
-    return Card(
+  Widget buildError() {
+    return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: 16,
-          horizontal: 12,
-        ),
-        child: Row(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment:
+              MainAxisAlignment.center,
           children: [
-            CircleAvatar(
-              radius: 23,
-              child: Icon(icon),
+            const Icon(
+              Icons.error_outline,
+              size: 55,
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
+            const SizedBox(height: 14),
+            Text(
+              errorMessage ??
+                  'Unable to load dashboard.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 18),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  isLoading = true;
+                  errorMessage = null;
+                });
+
+                loadDashboard();
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
             ),
           ],
         ),
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Parent Dashboard'),
+        actions: [
+          IconButton(
+            tooltip: 'Notifications',
+            icon: const Icon(
+              Icons.notifications_outlined,
+            ),
+            onPressed: () {
+              openScreen(
+                ParentNotificationsScreen(
+                  parentId: widget.parentId,
+                ),
+              );
+            },
+          ),
+          IconButton(
+            tooltip: 'Profile',
+            icon: const Icon(
+              Icons.account_circle_outlined,
+            ),
+            onPressed: () {
+              openScreen(
+                ParentProfileScreen(
+                  parentId: widget.parentId,
+                ),
+              );
+            },
+          ),
+          const LogoutButton(),
+        ],
+      ),
+      body: isLoading
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : errorMessage != null
+              ? buildError()
+              : buildDashboard(),
+    );
+  }
 }
+

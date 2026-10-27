@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import '../../services/api_service.dart';
 import 'parent_dashboard.dart';
 
 class ParentLoginScreen extends StatefulWidget {
@@ -10,40 +10,95 @@ class ParentLoginScreen extends StatefulWidget {
 }
 
 class _ParentLoginScreenState extends State<ParentLoginScreen> {
-  final TextEditingController parentIdController =
-      TextEditingController();
-
-  final TextEditingController passwordController =
-      TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
 
   bool isPasswordVisible = false;
+  bool isLoading = false;
 
-  void login() {
-    final parentId = parentIdController.text.trim();
+  Future<void> login() async {
+    final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
-    if (parentId.isEmpty || password.isEmpty) {
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter Parent ID and Password.'),
+          content: Text('Please enter Email and Password.'),
         ),
       );
       return;
     }
 
-    if (parentId == 'P001' && password == '1234') {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final result = await ApiService.login(
+        email: email,
+        password: password,
+      );
+
+      if (!mounted) return;
+
+      final role = result['role']?.toString().toLowerCase();
+
+      if (role != 'parent') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This account is not a Parent account.'),
+          ),
+        );
+        return;
+      }
+
+      final parentIdValue = result['parent_id'];
+
+      if (parentIdValue == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Parent account information was not found.'),
+          ),
+        );
+        return;
+      }
+
+      final int parentId = parentIdValue is int
+          ? parentIdValue
+          : int.parse(parentIdValue.toString());
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => const ParentDashboard(),
+          builder: (_) => ParentDashboard(
+            parentId: parentId,
+          ),
         ),
       );
-    } else {
+    } catch (e) {
+      if (!mounted) return;
+
+      String message = 'Login failed. Please try again.';
+
+      final error = e.toString();
+
+      if (error.contains('Invalid email or password')) {
+        message = 'Invalid email or password.';
+      } else if (error.contains('inactive')) {
+        message = 'This account is inactive.';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Invalid Parent ID or Password.'),
+        SnackBar(
+          content: Text(message),
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -54,7 +109,7 @@ class _ParentLoginScreenState extends State<ParentLoginScreen> {
         return AlertDialog(
           title: const Text('Forgot Password'),
           content: const Text(
-            'Password reset will be connected with the backend later.',
+            'Please contact the college administrator to reset your password.',
           ),
           actions: [
             TextButton(
@@ -71,7 +126,7 @@ class _ParentLoginScreenState extends State<ParentLoginScreen> {
 
   @override
   void dispose() {
-    parentIdController.dispose();
+    emailController.dispose();
     passwordController.dispose();
     super.dispose();
   }
@@ -120,7 +175,7 @@ class _ParentLoginScreenState extends State<ParentLoginScreen> {
               const SizedBox(height: 8),
 
               Text(
-                'Login to monitor your child’s academic progress',
+                'Login to monitor your child\'s academic progress',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -131,12 +186,13 @@ class _ParentLoginScreenState extends State<ParentLoginScreen> {
               const SizedBox(height: 32),
 
               TextField(
-                controller: parentIdController,
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
-                  labelText: 'Parent ID',
-                  hintText: 'Enter Parent ID',
-                  prefixIcon: Icon(Icons.person_outline),
+                  labelText: 'Email',
+                  hintText: 'Enter Parent Email',
+                  prefixIcon: Icon(Icons.email_outlined),
                 ),
               ),
 
@@ -173,20 +229,33 @@ class _ParentLoginScreenState extends State<ParentLoginScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: forgotPassword,
+                  onPressed: isLoading ? null : forgotPassword,
                   child: const Text('Forgot Password?'),
                 ),
               ),
 
               const SizedBox(height: 12),
 
-              ElevatedButton.icon(
-                onPressed: login,
-                icon: const Icon(Icons.login),
-                label: const Text('Login'),
+              SizedBox(
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: isLoading ? null : login,
+                  icon: isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.login),
+                  label: Text(
+                    isLoading ? 'Logging in...' : 'Login',
+                  ),
+                ),
               ),
 
-              const SizedBox(height: 22),
+              const SizedBox(height: 24),
 
               Container(
                 padding: const EdgeInsets.all(14),
@@ -197,26 +266,16 @@ class _ParentLoginScreenState extends State<ParentLoginScreen> {
                 child: const Column(
                   children: [
                     Text(
-                      'Demo Login',
+                      'Parent Login',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     SizedBox(height: 6),
-                    Text('Parent ID: P001'),
-                    Text('Password: 1234'),
+                    Text(
+                      'Use your registered parent email.',
+                    ),
                   ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              Text(
-                'Demo authentication only. Real secure authentication will be connected with the backend later.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
                 ),
               ),
             ],

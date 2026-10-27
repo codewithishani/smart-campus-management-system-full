@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
 import 'faculty_dashboard.dart';
 
 class FacultyLoginScreen extends StatefulWidget {
   const FacultyLoginScreen({super.key});
 
   @override
-  State<FacultyLoginScreen> createState() => _FacultyLoginScreenState();
+  State<FacultyLoginScreen> createState() =>
+      _FacultyLoginScreenState();
 }
 
 class _FacultyLoginScreenState extends State<FacultyLoginScreen> {
@@ -16,26 +18,191 @@ class _FacultyLoginScreenState extends State<FacultyLoginScreen> {
       TextEditingController();
 
   bool isPasswordVisible = false;
+  bool isLoggingIn = false;
 
-  void login() {
-    final facultyId = facultyIdController.text.trim();
-    final password = passwordController.text.trim();
+  String normalizeFacultyCode(String value) {
+    return value.trim().toLowerCase();
+  }
 
-    if (facultyId.isEmpty || password.isEmpty) {
+  int? extractNumericId(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+
+    return int.tryParse(
+      value?.toString().trim() ?? '',
+    );
+  }
+
+  int? facultyCodeToNumericId(String value) {
+    final cleaned = value.trim().toUpperCase();
+
+    // FAC001 -> 1
+    if (cleaned.startsWith('FAC')) {
+      final numberPart =
+          cleaned.substring(3).trim();
+
+      return int.tryParse(numberPart);
+    }
+
+    // Also allow entering just 1, 3, 5, etc.
+    return int.tryParse(cleaned);
+  }
+
+  Future<void> login() async {
+    final enteredFacultyId =
+        facultyIdController.text.trim();
+
+    final password =
+        passwordController.text.trim();
+
+    if (enteredFacultyId.isEmpty ||
+        password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter Faculty ID and Password'),
+          content: Text(
+            'Please enter Faculty ID and Password',
+          ),
         ),
       );
       return;
     }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const FacultyDashboard(),
-      ),
-    );
+    setState(() {
+      isLoggingIn = true;
+    });
+
+    try {
+      final facultyList =
+          await ApiService.getFaculty();
+
+      int? loggedInFacultyId;
+
+      final enteredCode =
+          normalizeFacultyCode(
+        enteredFacultyId,
+      );
+
+      final enteredNumericId =
+          facultyCodeToNumericId(
+        enteredFacultyId,
+      );
+
+      for (final item in facultyList) {
+        if (item is! Map) {
+          continue;
+        }
+
+        final faculty =
+            Map<String, dynamic>.from(item);
+
+        // Database primary key
+        final databaseFacultyId =
+            faculty['faculty_id'] ??
+                faculty['id'] ??
+                faculty['facultyId'];
+
+        final numericDatabaseId =
+            extractNumericId(
+          databaseFacultyId,
+        );
+
+        // Possible faculty code fields
+        final facultyCode =
+            faculty['faculty_code'] ??
+                faculty['faculty_code_id'] ??
+                faculty['facultyId'] ??
+                faculty['code'] ??
+                faculty['faculty_number'];
+
+        final databaseCode =
+            facultyCode?.toString().trim();
+
+        bool matched = false;
+
+        // Example:
+        // FAC001 == FAC001
+        if (databaseCode != null &&
+            databaseCode.isNotEmpty &&
+            enteredCode ==
+                databaseCode.toLowerCase()) {
+          matched = true;
+        }
+
+        // Example:
+        // FAC001 -> 1
+        // database ID -> 1
+        if (!matched &&
+            enteredNumericId != null &&
+            numericDatabaseId != null &&
+            enteredNumericId ==
+                numericDatabaseId) {
+          matched = true;
+        }
+
+        // Example:
+        // User enters 1 and database ID is 1
+        if (!matched &&
+            enteredNumericId != null &&
+            numericDatabaseId != null &&
+            enteredNumericId ==
+                numericDatabaseId) {
+          matched = true;
+        }
+
+        if (matched &&
+            numericDatabaseId != null) {
+          loggedInFacultyId =
+              numericDatabaseId;
+          break;
+        }
+      }
+
+      if (!mounted) return;
+
+      if (loggedInFacultyId == null) {
+        setState(() {
+          isLoggingIn = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Faculty ID not found in the database.',
+            ),
+          ),
+        );
+
+        return;
+      }
+
+      setState(() {
+        isLoggingIn = false;
+      });
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FacultyDashboard(
+            facultyId: loggedInFacultyId!,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoggingIn = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to load faculty data: $e',
+          ),
+        ),
+      );
+    }
   }
 
   void forgotPassword() {
@@ -69,7 +236,8 @@ class _FacultyLoginScreenState extends State<FacultyLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
+    final primaryColor =
+        Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       appBar: AppBar(
@@ -79,7 +247,8 @@ class _FacultyLoginScreenState extends State<FacultyLoginScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment:
+                CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20),
 
@@ -87,7 +256,9 @@ class _FacultyLoginScreenState extends State<FacultyLoginScreen> {
                 width: 92,
                 height: 92,
                 decoration: BoxDecoration(
-                  color: primaryColor.withValues(alpha: 0.10),
+                  color: primaryColor.withValues(
+                    alpha: 0.10,
+                  ),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -123,11 +294,13 @@ class _FacultyLoginScreenState extends State<FacultyLoginScreen> {
 
               TextField(
                 controller: facultyIdController,
-                textInputAction: TextInputAction.next,
+                textInputAction:
+                    TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Faculty ID',
-                  hintText: 'Enter Faculty ID',
-                  prefixIcon: Icon(Icons.badge_outlined),
+                  hintText: 'Example: FAC001',
+                  prefixIcon:
+                      Icon(Icons.badge_outlined),
                 ),
               ),
 
@@ -135,24 +308,30 @@ class _FacultyLoginScreenState extends State<FacultyLoginScreen> {
 
               TextField(
                 controller: passwordController,
-                obscureText: !isPasswordVisible,
+                obscureText:
+                    !isPasswordVisible,
                 onSubmitted: (_) => login(),
                 decoration: InputDecoration(
                   labelText: 'Password',
                   hintText: 'Enter Password',
-                  prefixIcon: const Icon(Icons.lock_outline),
+                  prefixIcon:
+                      const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
-                    tooltip: isPasswordVisible
-                        ? 'Hide password'
-                        : 'Show password',
+                    tooltip:
+                        isPasswordVisible
+                            ? 'Hide password'
+                            : 'Show password',
                     icon: Icon(
                       isPasswordVisible
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
+                          ? Icons
+                              .visibility_off_outlined
+                          : Icons
+                              .visibility_outlined,
                     ),
                     onPressed: () {
                       setState(() {
-                        isPasswordVisible = !isPasswordVisible;
+                        isPasswordVisible =
+                            !isPasswordVisible;
                       });
                     },
                   ),
@@ -162,31 +341,52 @@ class _FacultyLoginScreenState extends State<FacultyLoginScreen> {
               const SizedBox(height: 8),
 
               Align(
-                alignment: Alignment.centerRight,
+                alignment:
+                    Alignment.centerRight,
                 child: TextButton(
                   onPressed: forgotPassword,
-                  child: const Text('Forgot Password?'),
+                  child: const Text(
+                    'Forgot Password?',
+                  ),
                 ),
               ),
 
               const SizedBox(height: 12),
 
               ElevatedButton.icon(
-                onPressed: login,
-                icon: const Icon(Icons.login),
-                label: const Text('Login'),
+                onPressed:
+                    isLoggingIn ? null : login,
+                icon: isLoggingIn
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child:
+                            CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.login),
+                label: Text(
+                  isLoggingIn
+                      ? 'Checking...'
+                      : 'Login',
+                ),
               ),
 
               const SizedBox(height: 22),
 
               Container(
-                padding: const EdgeInsets.all(14),
+                padding:
+                    const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: primaryColor.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(14),
+                  color: primaryColor.withValues(
+                    alpha: 0.06,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(14),
                 ),
                 child: const Text(
-                  'Demo Mode: Any non-empty Faculty ID and Password will work.',
+                  'Use a Faculty ID from the database, such as FAC001, FAC003, FAC005, or FAC006.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12,
@@ -197,7 +397,7 @@ class _FacultyLoginScreenState extends State<FacultyLoginScreen> {
               const SizedBox(height: 16),
 
               Text(
-                'Secure authentication will be connected with the backend later.',
+                'Faculty data is loaded from the backend database.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,

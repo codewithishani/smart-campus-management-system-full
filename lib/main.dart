@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 
@@ -13,8 +14,6 @@ import 'screens/parent/parent_login_screen.dart';
 // Admin
 import 'screens/admin/admin_login_screen.dart';
 
-
-
 void main() {
   runApp(const SmartCampusApp());
 }
@@ -29,10 +28,9 @@ class SmartCampusApp extends StatelessWidget {
       title: 'Smart Campus Management System',
       theme: AppTheme.lightTheme,
       home: const SplashScreen(),
-      );
+    );
   }
 }
-
 
 // =====================================================
 // SPLASH SCREEN
@@ -46,24 +44,20 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-
   @override
   void initState() {
     super.initState();
 
-    Future.delayed(
-      const Duration(seconds: 3),
-      () {
-        if (!mounted) return;
+    Future.delayed(const Duration(seconds: 3), () {
+      if (!mounted) return;
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const WelcomeScreen(),
-          ),
-        );
-      },
-    );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const WelcomeScreen(),
+        ),
+      );
+    });
   }
 
   @override
@@ -73,14 +67,8 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-
-            const Icon(
-              Icons.school,
-              size: 90,
-            ),
-
+            const Icon(Icons.school, size: 90),
             const SizedBox(height: 20),
-
             const Text(
               'SMART CAMPUS',
               style: TextStyle(
@@ -88,18 +76,13 @@ class _SplashScreenState extends State<SplashScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 8),
-
             const Text(
-              'Management System',
-              style: TextStyle(
-                fontSize: 16,
-              ),
+              'Government Polytechnic, Pune',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16),
             ),
-
             const SizedBox(height: 30),
-
             const CircularProgressIndicator(),
           ],
         ),
@@ -107,7 +90,6 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 }
-
 
 // =====================================================
 // WELCOME SCREEN
@@ -118,126 +100,200 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-
-            children: [
-
-              // College photo placeholder
-              // College photo
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Image.asset(
-                     'assets/images/college.jpg',
-                      height: 220,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 20,
                   ),
-
-              const SizedBox(height: 30),
-
-              const Text(
-                'SMART CAMPUS',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              const Text(
-                'Smart Campus Management System',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.grey,
-                ),
-              ),
-
-              const SizedBox(height: 35),
-
-              // Login button
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const RoleSelectionScreen(),
-                      ),
-                    );
-                  },
-
-                  child: const Text(
-                    'Login',
-                    style: TextStyle(
-                      fontSize: 17,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 15),
-
-              // Register button
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-
-                child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const RegisterScreen(),
-                      ),
-                    );
-                  },
-
-                  child: const Text(
-                    'Register',
-                    style: TextStyle(
-                      fontSize: 17,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              const Text(
-                'College Email: college@example.com',
-                style: TextStyle(
-                  color: Colors.grey,
-                ),
-              ),
-
-              const SizedBox(height: 5),
-
-              const Text(
-                'Contact: +91 XXXXX XXXXX',
-                style: TextStyle(
-                  color: Colors.grey,
-                ),
-              ),
-            ],
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      
+ // College Photo
+ClipRRect(
+  borderRadius: BorderRadius.circular(16),
+  child: Container(
+    width: double.infinity,
+    height: 220,
+    color: Colors.white,
+    child: Image.asset(
+      'assets/images/college.jpg',
+      width: double.infinity,
+      height: 220,
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          width: double.infinity,
+          height: 220,
+          color: Colors.grey.shade200,
+          child: const Icon(
+            Icons.school,
+            size: 75,
+            color: Colors.grey,
           ),
+        );
+      },
+    ),
+  ),
+),
+
+const SizedBox(height: 22),
+
+                      // College Name
+                      const Text(
+                        'GOVERNMENT POLYTECHNIC, PUNE',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // Application Name
+                      const Text(
+                        'SMART CAMPUS',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      const Text(
+                        'Smart Campus Management System',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Colors.grey,
+                        ),
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      // Login Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const RoleSelectionScreen(),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'Login',
+                            style: TextStyle(fontSize: 17),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // Register Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const RegisterScreen(),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'Register',
+                            style: TextStyle(fontSize: 17),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      // College Contact Information
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.account_balance_outlined,
+                              size: 26,
+                              color: primaryColor,
+                            ),
+                            const SizedBox(height: 10),
+                            const Text(
+                              'Government Polytechnic, Pune',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.email_outlined, size: 18),
+                                SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    'gppune@gmail.com',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.phone_outlined, size: 18),
+                                SizedBox(width: 8),
+                                Text('+91 XXXXX XXXXX'),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 }
-
 
 // =====================================================
 // ROLE SELECTION SCREEN
@@ -246,40 +302,29 @@ class WelcomeScreen extends StatelessWidget {
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
 
-  void openRole(
-    BuildContext context,
-    String role,
-  ) {
-
+  void openRole(BuildContext context, String role) {
     if (role == 'Student') {
-
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => const StudentLoginScreen(),
         ),
       );
-
     } else if (role == 'Faculty') {
-
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => const FacultyLoginScreen(),
         ),
       );
-
     } else if (role == 'Parent') {
-
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => const ParentLoginScreen(),
         ),
       );
-
     } else if (role == 'Admin') {
-
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -295,15 +340,11 @@ class RoleSelectionScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Select Your Role'),
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(20),
-
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-
           children: [
-
             const Text(
               'Who are you?',
               style: TextStyle(
@@ -311,33 +352,13 @@ class RoleSelectionScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 30),
-
-            _roleCard(
-              context,
-              'Student',
-              Icons.school,
-            ),
-
+            _roleCard(context, 'Student', Icons.school),
             const SizedBox(height: 15),
-
-            _roleCard(
-              context,
-              'Faculty',
-              Icons.person,
-            ),
-
+            _roleCard(context, 'Faculty', Icons.person),
             const SizedBox(height: 15),
-
-            _roleCard(
-              context,
-              'Parent',
-              Icons.family_restroom,
-            ),
-
+            _roleCard(context, 'Parent', Icons.family_restroom),
             const SizedBox(height: 15),
-
             _roleCard(
               context,
               'Admin',
@@ -357,27 +378,15 @@ class RoleSelectionScreen extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       height: 65,
-
       child: Card(
         elevation: 3,
-
         child: InkWell(
-          onTap: () {
-            openRole(context, role);
-          },
-
+          onTap: () => openRole(context, role),
           child: Row(
             children: [
-
               const SizedBox(width: 20),
-
-              Icon(
-                icon,
-                size: 32,
-              ),
-
+              Icon(icon, size: 32),
               const SizedBox(width: 20),
-
               Text(
                 role,
                 style: const TextStyle(
@@ -385,14 +394,8 @@ class RoleSelectionScreen extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-
               const Spacer(),
-
-              const Icon(
-                Icons.arrow_forward_ios,
-                size: 18,
-              ),
-
+              const Icon(Icons.arrow_forward_ios, size: 18),
               const SizedBox(width: 15),
             ],
           ),
@@ -401,7 +404,6 @@ class RoleSelectionScreen extends StatelessWidget {
     );
   }
 }
-
 
 // =====================================================
 // REGISTER SCREEN
@@ -418,8 +420,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController mobileController = TextEditingController();
-  final TextEditingController passwordController =
-      TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
       TextEditingController();
 
@@ -505,8 +506,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 10),
-
-              // Registration Icon
               Container(
                 width: 88,
                 height: 88,
@@ -520,9 +519,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   color: primaryColor,
                 ),
               ),
-
               const SizedBox(height: 22),
-
               const Text(
                 'Create Your Account',
                 textAlign: TextAlign.center,
@@ -531,9 +528,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 8),
-
               Text(
                 'Register for the Smart Campus system',
                 textAlign: TextAlign.center,
@@ -542,10 +537,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   color: Colors.grey.shade700,
                 ),
               ),
-
               const SizedBox(height: 30),
-
-              // Full Name
               TextField(
                 controller: nameController,
                 textInputAction: TextInputAction.next,
@@ -555,10 +547,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   prefixIcon: Icon(Icons.person_outline),
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // Email
               TextField(
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
@@ -569,10 +558,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // Mobile
               TextField(
                 controller: mobileController,
                 keyboardType: TextInputType.phone,
@@ -583,10 +569,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   prefixIcon: Icon(Icons.phone_outlined),
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // Role
               DropdownButtonFormField<String>(
                 initialValue: selectedRole,
                 decoration: const InputDecoration(
@@ -615,10 +598,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   }
                 },
               ),
-
               const SizedBox(height: 16),
-
-              // Password
               TextField(
                 controller: passwordController,
                 obscureText: !isPasswordVisible,
@@ -644,10 +624,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // Confirm Password
               TextField(
                 controller: confirmPasswordController,
                 obscureText: !isConfirmPasswordVisible,
@@ -675,19 +652,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
-
-              // Register Button
               ElevatedButton.icon(
                 onPressed: register,
                 icon: const Icon(Icons.person_add_outlined),
                 label: const Text('Create Account'),
               ),
-
               const SizedBox(height: 20),
-
-              // Demo Information
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -698,18 +669,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   'Demo Registration: This form is for frontend demonstration. '
                   'Real account creation will be connected with the backend later.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(fontSize: 12),
                 ),
               ),
-
               const SizedBox(height: 16),
-
               TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
+                onPressed: () => Navigator.pop(context),
                 child: const Text('Already have an account? Login'),
               ),
             ],
